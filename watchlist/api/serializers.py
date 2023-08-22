@@ -3,11 +3,11 @@ from watchlist.models import Show,StreamPlatform,Review
 
 # Working with ModelSerializer
 class ReviewSerializer(serializers.ModelSerializer):
-
+    reviewer = serializers.StringRelatedField(read_only=True)
     class Meta:
         model = Review
         # fields = '__all__'
-        exclude = ('showlist', )
+        exclude = ('showname', )
         read_only_fields = ('id',)
 
 
@@ -22,7 +22,8 @@ class ShowSerializer(serializers.ModelSerializer):
 
 
 class PlatformSerializer(serializers.ModelSerializer):
-    showlist = ShowSerializer(many=True, read_only=True)
+    # showlist = ShowSerializer(many=True, read_only=True)
+    showname = ShowSerializer(many=True, read_only=True)
 
     class Meta:
         model = StreamPlatform

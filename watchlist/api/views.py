@@ -4,8 +4,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import mixins
 from rest_framework import generics
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 
-
+from watchlist.api.permissions import IsAdminOrReadOnly,reviewUserorReadOnly
 from watchlist.models import Show,StreamPlatform,Review
 from .serializers import ShowSerializer,PlatformSerializer,ReviewSerializer
 
@@ -20,6 +22,8 @@ class Streaming_Platform_List(APIView):
     """
     List all movies, or create a new movie.
     """ 
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, format=None):
         platforms = StreamPlatform.objects.all()
         serializer = PlatformSerializer(platforms, many=True)
@@ -37,7 +41,10 @@ class Streaming_Platform_List(APIView):
 class Stream_Platform_Details(APIView):
     """
     Retrieve, update or delete a movie instance.
+
     """
+    permission_classes = [IsAdminOrReadOnly]
+
     def get(self, request, pk, format=None):
         try:
             platform = StreamPlatform.objects.get(pk=pk)
@@ -72,6 +79,7 @@ class Show_List(APIView):
     """
     List all movies, or create a new movie.
     """
+    permission_classes = [IsAdminOrReadOnly]
 
     def get(self, request, format=None):
         movies = Show.objects.all()
@@ -91,6 +99,7 @@ class Show_Details(APIView):
     """
     Retrieve, update or delete a movie instance.
     """
+    permission_classes = [IsAdminOrReadOnly]
 
     def get(self, request, pk):
         try:
@@ -123,142 +132,49 @@ class Show_Details(APIView):
 
 class ReviewCreate(generics.CreateAPIView):
     serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Review.objects.all()
+
 
     def perform_create(self,serializer):
         pk = self.kwargs.get('pk')
         movie = Show.objects.get(pk=pk)
 
-        serializer.save(showlist=movie)
+        user = self.request.user
+        review_Queryset = Review.objects.filter(reviewer = user,showname=movie)
+        if review_Queryset.exists():
+            raise ValidationError("You have already posted a review for this movie")
+
+        # Updating the average of ratings
+        if movie.number_ratings == 0:
+            movie.avg_ratings = serializer.validated_data['rating']
+        else:
+            movie.avg_ratings = (movie.avg_ratings + serializer.validated_data['rating'])/2
+
+        # Updating the total number of ratings
+        movie.number_ratings = movie.number_ratings + 1
+        movie.save()
+
+        serializer.save(showname=movie,reviewer = user  )
 
 
 
 class ReviewList(generics.ListAPIView):
+    # permission_classes = [IsAuthenticatedOrReadOnly]
+    # permission_classes = [IsAuthenticated]
     
     serializer_class = ReviewSerializer
-    
     def get_queryset(self):
         pk = self.kwargs['pk']
-        return Review.objects.filter(showlist=pk)
+        return Review.objects.filter(showname=pk)
 
 
 
 class ReviewDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
+    permission_classes = [reviewUserorReadOnly]
 
 
-
-
-
-# class Review_List(mixins.ListModelMixin,
-#                   mixins.CreateModelMixin,
-#                   generics.GenericAPIView):
-#     queryset = Review.objects.all()
-#     serializer_class = ReviewSerializer
-
-#     def get(self, request, *args, **kwargs):
-#         return self.list(request, *args, **kwargs)
-
-#     def post(self, request, *args, **kwargs):
-#         return self.create(request, *args, **kwargs)
-
-
-# class ReviewDetail(mixins.RetrieveModelMixin,
-#                     mixins.UpdateModelMixin,
-#                     mixins.DestroyModelMixin,
-#                     generics.GenericAPIView):
-#     queryset = Review.objects.all()
-#     serializer_class = ReviewSerializer
-
-#     def get(self, request, *args, **kwargs):
-#         return self.retrieve(request, *args, **kwargs)
-
-#     def put(self, request, *args, **kwargs):
-#         return self.update(request, *args, **kwargs)
-
-#     def delete(self, request, *args, **kwargs):
-#         return self.destroy(request, *args, **kwargs)
-
-
-
-
-    
-
-
-
-
-
-
-
-
-"""
-
- Function Based Views 
-
-"""
-
-
-# @api_view(['GET', 'POST'])
-# def movie_list(request):
-
-#     """
-#     List all movies, or create a new movie.
-
-#     """
-#     if request.method == 'GET':
-#         movies = Movie.objects.all()
-#         serializer = WatchListSerializer(movies, many=True)
-#         return Response(serializer.data)
-#     if request.method == 'POST':
-#         serializer = WatchListSerializer(data=request.data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data)
-#         else:
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# @api_view(['GET', 'PUT','DELETE'])
-# def movie_Details(request,pk):
-#     """
-#     Retrieve, update or delete a movie instance.
-
-#     """
-#     if request.method == 'GET':
-#         try:
-#             movie = Movie.objects.get(pk=pk)
-#         except:
-#             return Response({'Error':'Movie Not Found'},status=status.HTTP_404_NOT_FOUND)
-#         serializer = WatchListSerializer(movie)
-#         return Response(serializer.data)
-
-#     """
-#     Edit a movie by its title and description and return a Response the error message associated with the error message.
-
-#     """
-#     if request.method == 'PUT':
-#         try:
-#             movie = Movie.objects.get(pk=pk)
-#         except:
-#             return Response({'Error':'Movie Not Found to Edit'},status=status.HTTP_404_NOT_FOUND)
-#         movie = Movie.objects.get(pk=pk)
-#         serializer = WatchListSerializer(movie, data=request.data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data)
-#         else:
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-#         """
-#         Delete a movie by its title and return a Response the error message associated with the error message.
-
-#         """
-
-#     if request.method == 'DELETE':
-#         try:
-#             movie = Movie.objects.get(pk=pk)
-#         except:
-#             return Response({'Error':'Movie Not Found to Delete'},status=status.HTTP_404_NOT_FOUND)
-#         movie = Movie.objects.get(pk=pk)
-#         movie.delete()
-#         return Response(status=status.HTTP_204_NO_CONTENT)
