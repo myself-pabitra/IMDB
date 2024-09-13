@@ -1,5 +1,5 @@
-from django.urls import include,path
-from .views import *
+from django.urls import path
+from .views import Show_List,Show_Details,Streaming_Platform_List,Stream_Platform_Details,ReviewCreate,ReviewList,ReviewDetail
 # from .views import movie_list,movie_Details
 
 
@@ -7,10 +7,12 @@ from .views import *
 urlpatterns = [
     path('list/',Show_List.as_view(), name='movie-list'),
     path('<int:pk>/',Show_Details.as_view(), name='movie-details'),
-    path('platform/',Streaming_Platform_List.as_view(), name='platform-list'), # Stream/
+    path('platform/',Streaming_Platform_List.as_view(), name='platform-list'), 
+    
+    # Stream
     path('platform/<int:pk>/',Stream_Platform_Details.as_view(), name='platform-details'),
-
     path('<int:pk>/review-create/',ReviewCreate.as_view(), name='review-create'), 
+    
     #This URL will show review of a specific movie 
     path('<int:pk>/review/',ReviewList.as_view(), name='review-list'), 
     path('review/<int:pk>/',ReviewDetail.as_view(), name='review-details'),
